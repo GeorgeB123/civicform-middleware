@@ -303,6 +303,30 @@ app.use('*', async (c, next) => {
 
 // Routes
 
+// Webform structure endpoints (Webhook route for backward compatibility)
+app.post('/api/webhook', authenticateWebhook, async (c) => {
+  try {
+    const { form_id, submission_data } = await c.req.json();
+    
+    if (!form_id || !submission_data) {
+      return c.json({ error: 'Missing form_id or submission_data' }, 400);
+    }
+    
+    const dbOps = getDbOps(c.env.DB);
+    const id = await dbOps.saveWebformStructure(form_id, submission_data);
+    
+    return c.json({ 
+      success: true, 
+      message: 'Webform structure received and saved',
+      form_id,
+      id
+    });
+  } catch (error) { 
+    await logError(c.env.DB, 'error', 'Webform structure update error', error, c.req);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 // Webform structure endpoints
 app.post('/api/webform/:webform_id/structure', authenticateWebhook, async (c) => {
   try {
