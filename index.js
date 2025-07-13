@@ -128,28 +128,23 @@ const authenticateSubmission = async (req, res, next) => {
 // Routes
 
 // Webform structure endpoints
-app.post('/api/webform/:webform_id/structure', authenticateWebhook, async (req, res) => {
+app.post('/api/webhook', authenticateWebhook, async (req, res) => {
   try {
-    const { webform_id } = req.params;
-    const form_data = req.body;
+    const { form_id, submission_data } = req.body;
     
-    if (!webform_id) {
-      return res.status(400).json({ error: 'Missing webform_id parameter' });
+    if (!form_id || !submission_data) {
+      return res.status(400).json({ error: 'Missing form_id or submission_data' });
     }
     
-    if (!form_data || Object.keys(form_data).length === 0) {
-      return res.status(400).json({ error: 'Missing form structure data' });
-    }
-    
-    const id = await dbOps.saveWebformStructure(webform_id, form_data);
+    const id = await dbOps.saveWebformStructure(form_id, submission_data);
     
     res.json({ 
       success: true, 
       message: 'Webform structure received and saved',
-      webform_id,
+      form_id,
       id
     });
-  } catch (error) {
+  } catch (error) { 
     await logError('error', 'Webform structure update error', error, req);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -183,10 +178,10 @@ app.get('/api/webform/:webform_id/structure', async (req, res) => {
 // Submission endpoints
 app.post('/api/webform/:webform_id/submission', authenticateSubmission, async (req, res) => {
   try {
-    const { form_id } = req.params;
+    const { webform_id } = req.params;
     const { submission_data } = req.body;
     
-    if (!form_id || !submission_data) {
+    if (!webform_id || !submission_data) {
       return res.status(400).json({ error: 'Missing form_id or submission_data' });
     }
     
@@ -219,13 +214,59 @@ app.post('/api/webform/:webform_id/submission', authenticateSubmission, async (r
 
 app.post('/api/webform/submissions', authenticateSubmission, async (req, res) => {
   try {
-    const filters = req.body;
-    const submissions = await dbOps.getFilteredSubmissions(filters);
+    const { 
+      limit = 100, 
+      status = null, 
+      form_id = null, 
+      start_date = null, 
+      end_date = null 
+    } = req.body;
+    
+    let query = 'SELECT * FROM submissions WHERE 1=1';
+    const params = [];
+    
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    if (form_id) {
+      query += ' AND form_id = ?';
+      params.push(form_id);
+    }
+    
+    if (start_date) {
+      query += ' AND created_at >= ?';
+      params.push(start_date);
+    }
+    
+    if (end_date) {
+      query += ' AND created_at <= ?';
+      params.push(end_date);
+    }
+    
+    query += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(parseInt(limit));
+    
+    const result = await db.execute(query, params);
+    
+    const submissions = result.rows.map(row => ({
+      id: row.id,
+      submission_id: row.submission_id,
+      form_id: row.form_id,
+      data: JSON.parse(row.submission_data),
+      status: row.status,
+      retry_count: row.retry_count,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      sent_at: row.sent_at,
+      error_message: row.error_message
+    }));
     
     res.json({
       submissions,
       count: submissions.length,
-      filters
+      filters: { limit, status, form_id, start_date, end_date }
     });
   } catch (error) {
     await logError('error', 'Submissions retrieval error', error, req);

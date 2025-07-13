@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@hono/zod-validator": "^0.7.0",
     "@libsql/client": "^0.15.9",
     "better-sqlite3": "^11.10.0",
     "compression": "^1.7.4",
@@ -20,6 +21,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
+    "hono": "^4.8.4",
     "joi": "^17.13.3"
   }
 }

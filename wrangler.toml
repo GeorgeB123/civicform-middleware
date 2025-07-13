@@ -1,0 +1,8 @@
+name = "civicform-middleware"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "civicform-db"
+database_id = "5a643af0-c71d-4861-b1f5-d49fc6586201"
